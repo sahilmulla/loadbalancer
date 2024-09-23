@@ -29,6 +29,7 @@ func (p *roundRobinPool) GetNextService() service.Service {
 func (p *roundRobinPool) nextIndex() int {
 	p.mux.Lock()
 	defer p.mux.Unlock()
+
 	p.current = (p.current + 1) % uint64(len(p.services))
 	return int(p.current)
 }
