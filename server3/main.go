@@ -14,6 +14,7 @@ func main() {
 	})
 
 	http.HandleFunc("/hi", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%+v", r)
 		fmt.Fprintf(w, "Hi, from server3")
 	})
 

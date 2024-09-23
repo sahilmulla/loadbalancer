@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -60,8 +59,8 @@ func NewService(url *url.URL) *service {
 }
 
 func (s *service) errorHandler(w http.ResponseWriter, r *http.Request, err error) {
-	log.Println(s.url, "error in service")
-	fmt.Println(err)
+	log.Printf("Error in service %s: %v\n", s.url, err)
 
 	s.SetAlive(false)
+	http.Error(w, "Service not available", http.StatusServiceUnavailable)
 }

@@ -2,7 +2,6 @@ package pool
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/sahilmulla/loadbalancer/pkg/service"
@@ -32,13 +31,14 @@ func (p *roundRobinPool) GetNextService() (service.Service, error) {
 	currIdx := p.current
 
 	for {
-		nextIdx := p.nextIndex()
-		fmt.Println(currIdx, nextIdx)
-		ns := p.services[nextIdx]
+		ns := p.services[p.current]
 		if ns.IsAlive() {
+			p.nextIndex()
 			return ns, nil
 		}
-		if nextIdx == int(currIdx) {
+
+		p.nextIndex()
+		if p.current == currIdx {
 			break
 		}
 	}
@@ -46,12 +46,11 @@ func (p *roundRobinPool) GetNextService() (service.Service, error) {
 	return nil, ErrAllDown
 }
 
-func (p *roundRobinPool) nextIndex() int {
+func (p *roundRobinPool) nextIndex() {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
 	p.current = (p.current + 1) % uint64(len(p.services))
-	return int(p.current)
 }
 
 func NewRoundRobinPool() *roundRobinPool {
