@@ -1,11 +1,10 @@
 package balancer
 
 import (
-	"errors"
+	"log"
 	"net/http"
 
 	"github.com/sahilmulla/loadbalancer/pkg/pool"
-	"github.com/sahilmulla/loadbalancer/pkg/service"
 )
 
 type Balancer interface {
@@ -13,26 +12,17 @@ type Balancer interface {
 }
 
 type balancer struct {
-	pool.Pool
+	pool pool.Pool
 }
 
 func (b *balancer) Serve(w http.ResponseWriter, r *http.Request) {
-	service := b.GetNextService()
+	log.Println("serving: ", r.URL)
+	service := b.pool.GetNextService()
 	service.Serve(w, r)
 }
 
-func NewBalancer(services ...service.Service) (*balancer, error) {
-	if len(services) < 1 {
-		return nil, errors.New("at least one service is required")
+func NewBalancer(pool pool.Pool) balancer {
+	return balancer{
+		pool: pool,
 	}
-
-	p := pool.NewRoundRobinPool()
-
-	for _, s := range services {
-		p.AddService(s)
-	}
-
-	return &balancer{
-		Pool: p,
-	}, nil
 }
