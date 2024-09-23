@@ -1,14 +1,20 @@
 package pool
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/sahilmulla/loadbalancer/pkg/service"
 )
 
+var (
+	ErrAllDown = errors.New("all services down")
+)
+
 type Pool interface {
 	AddService(service.Service)
-	GetNextService() service.Service
+	GetNextService() (service.Service, error)
 }
 
 type roundRobinPool struct {
@@ -22,8 +28,22 @@ func (p *roundRobinPool) AddService(s service.Service) {
 	p.services = append(p.services, s)
 }
 
-func (p *roundRobinPool) GetNextService() service.Service {
-	return p.services[p.nextIndex()]
+func (p *roundRobinPool) GetNextService() (service.Service, error) {
+	currIdx := p.current
+
+	for {
+		nextIdx := p.nextIndex()
+		fmt.Println(currIdx, nextIdx)
+		ns := p.services[nextIdx]
+		if ns.IsAlive() {
+			return ns, nil
+		}
+		if nextIdx == int(currIdx) {
+			break
+		}
+	}
+
+	return nil, ErrAllDown
 }
 
 func (p *roundRobinPool) nextIndex() int {

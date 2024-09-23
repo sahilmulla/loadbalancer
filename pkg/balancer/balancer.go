@@ -1,6 +1,7 @@
 package balancer
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -17,7 +18,15 @@ type balancer struct {
 
 func (b *balancer) Serve(w http.ResponseWriter, r *http.Request) {
 	log.Println("serving: ", r.URL)
-	service := b.pool.GetNextService()
+	service, err := b.pool.GetNextService()
+	if err != nil {
+		if errors.Is(err, pool.ErrAllDown) {
+			http.Error(w, "Service not available", http.StatusServiceUnavailable)
+		} else {
+			log.Fatalln(err)
+		}
+		return
+	}
 	service.Serve(w, r)
 }
 

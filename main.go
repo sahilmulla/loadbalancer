@@ -22,7 +22,7 @@ func main() {
 			log.Fatalln(err)
 		}
 		s := service.NewService(url)
-		p.AddService(&s)
+		p.AddService(s)
 	}
 
 	lb := balancer.NewBalancer(p)
