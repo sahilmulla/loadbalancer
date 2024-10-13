@@ -2,17 +2,19 @@ package pool
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/sahilmulla/loadbalancer/pkg/service"
 )
 
 var (
-	ErrAllDown = errors.New("all services down")
+	ErrAllDown   = errors.New("all services down")
+	ErrDuplicate = errors.New("already added")
 )
 
 type Pool interface {
-	AddService(service.Service)
+	AddService(service.Service) error
 	GetNextService() (service.Service, error)
 }
 
@@ -23,8 +25,24 @@ type roundRobinPool struct {
 	mux sync.RWMutex
 }
 
-func (p *roundRobinPool) AddService(s service.Service) {
+func (p *roundRobinPool) AddService(s service.Service) error {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+	for _, service := range p.services {
+		fmt.Println("s", service.GetURL().Host)
+		if service.GetURL().Host == s.GetURL().Host {
+			if !service.IsAlive() {
+				service.SetAlive(true)
+				return nil
+			}
+
+			return ErrDuplicate
+		}
+	}
+
 	p.services = append(p.services, s)
+
+	return nil
 }
 
 func (p *roundRobinPool) GetNextService() (service.Service, error) {

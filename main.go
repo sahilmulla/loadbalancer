@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/sahilmulla/loadbalancer/pkg/balancer"
 	"github.com/sahilmulla/loadbalancer/pkg/pool"
@@ -12,23 +11,45 @@ import (
 )
 
 func main() {
-	serverUrlStrs := "http://localhost:8081,http://localhost:8082,http://localhost:8083"
-
 	p := pool.NewRoundRobinPool()
 
-	for _, urlStr := range strings.Split(serverUrlStrs, ",") {
-		url, err := url.Parse(urlStr)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		s := service.NewService(url)
-		p.AddService(s)
-	}
-
 	lb := balancer.NewBalancer(p)
+
 	server := http.Server{
 		Addr:    ":8080",
 		Handler: http.HandlerFunc(lb.Serve),
 	}
+
+	go func() {
+		internal := http.NewServeMux()
+
+		internal.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodPost:
+				urlStr := r.URL.Query().Get("url")
+				serviceUrl, err := url.Parse(urlStr)
+				if err != nil {
+					log.Println(err)
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+
+				s := service.NewService(serviceUrl)
+
+				if err := p.AddService(s); err != nil {
+					log.Println(err)
+					w.WriteHeader(http.StatusUnprocessableEntity)
+					return
+				}
+
+				w.WriteHeader(http.StatusNoContent)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		})
+
+		log.Fatalln(http.ListenAndServe(":9000", internal))
+	}()
+
 	log.Fatal(server.ListenAndServe())
 }
